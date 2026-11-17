@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FocusFlow">
+<meta name="theme-color" content="#0b111e">
+<link rel="apple-touch-icon" href="./icon.png">
+<link rel="icon" type="image/png" href="./icon.png">
+<title>FocusFlow</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b111e;
+    --card: rgba(255, 255, 255, 0.06);
+    --card-hi: rgba(255, 255, 255, 0.10);
+    --border: rgba(255, 255, 255, 0.12);
+    --cyan: #38bdf8;
+    --emerald: #34d399;
+    --amber: #fbbf24;
+    --text: #f8fafc;
+    --muted: rgba(248, 250, 252, 0.58);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    padding: calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 28px);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Text", sans-serif;
+    background: radial-gradient(circle at top right, #16294a, var(--bg) 62%);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  button, input, textarea { font-family: inherit; }
+
+  /* Install Hint Banner (shown only in Safari before Add to Home Screen) */
+  .install-banner {
+    display: none;
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(37, 99, 235, 0.18));
+    border: 1px solid rgba(56, 189, 248, 0.42);
+    border-radius: 13px;
+    padding: 11px 12px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .install-banner.show { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .install-dismiss {
+    background: rgba(255,255,255,0.1); border: 0; color: var(--muted);
+    width: 26px; height: 26px; border-radius: 8px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+  }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .brand img { width: 28px; height: 28px; border-radius: 7px; }
+  .brand-title { font-size: 21px; font-weight: 700; letter-spacing: -0.4px; }
+  .sync-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--card); border: 1px solid var(--border); color: var(--muted);
+    padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; cursor: pointer;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--emerald); }
+  .dot.warn { background: var(--amber); }
+  .dot.spin { background: var(--cyan); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  /* Quick Brain-Dump Card */
+  .dump-box {
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+  .dump-row { display: flex; gap: 8px; align-items: center; }
+  .dump-input {
+    flex: 1; background: transparent; border: 0; color: var(--text);
+    font-size: 15px; outline: none; padding: 4px 2px; min-width: 0;
+  }
+  .dump-input::placeholder { color: rgba(248, 250, 252, 0.42); }
+  .dump-submit {
+    background: var(--cyan); color: #061325; border: 0; border-radius: 10px;
+    padding: 8px 13px; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+  }
+  .dump-submit:active { opacity: 0.82; }
+  .route-chips { display: flex; gap: 6px; overflow-x: auto; padding-top: 8px; scrollbar-width: none; }
+  .route-chips::-webkit-scrollbar { display: none; }
+  .chip {
+    background: rgba(255,255,255,0.05); border: 1px solid transparent; color: var(--muted);
+    padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; cursor: pointer;
+  }
+  .chip.active { background: rgba(56, 189, 248, 0.18); border-color: rgba(56, 189, 248, 0.45); color: #fff; }
+
+  /* Search + Suggestions Row */
+  .toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
+  .search {
+    flex: 1; padding: 9px 12px; border-radius: 11px; border: 1px solid var(--border);
+    background: rgba(0,0,0,0.28); color: var(--text); font-size: 14px; outline: none;
+  }
+  .suggest-btn {
+    background: var(--card); border: 1px solid var(--border); color: var(--amber);
+    padding: 0 12px; border-radius: 11px; font-size: 12px; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap;
+  }
+  .suggest-btn.active { background: rgba(251, 191, 36, 0.2); border-color: var(--amber); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 8px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    border: 1px solid var(--border); background: var(--card); color: var(--muted);
+    padding: 7px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer;
+  }
+  .tab.active { background: rgba(56, 189, 248, 0.22); border-color: var(--cyan); color: #fff; }
+
+  /* Suggestions Panel */
+  .suggestions-drawer {
+    background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(251, 191, 36, 0.35);
+    border-radius: 14px; padding: 12px; margin-bottom: 12px;
+  }
+  .sug-title { font-size: 12px; font-weight: 700; color: var(--amber); text-transform: uppercase; letter-spacing: 0.4px; margin: 8px 0 6px; }
+  .sug-title:first-child { margin-top: 0; }
+  .sug-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    padding: 8px 9px; border-radius: 10px; background: rgba(255,255,255,0.04); margin-bottom: 6px;
+  }
+  .sug-add {
+    background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: var(--cyan);
+    width: 28px; height: 28px; border-radius: 50%; font-size: 16px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+  }
+
+  /* Task Cards */
+  .section-label { font-size: 12px; font-weight: 700; color: var(--muted); margin: 14px 2px 8px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 13px;
+    padding: 11px 12px; margin-bottom: 8px;
+  }
+  .card.done { opacity: 0.52; }
+  .card-main { display: flex; align-items: flex-start; gap: 10px; }
+  .check-btn {
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.42);
+    background: transparent; flex-shrink: 0; margin-top: 1px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0; color: #04131d;
+  }
+  .card.done .check-btn { background: var(--emerald); border-color: var(--emerald); }
+  .card-body { flex: 1; min-width: 0; }
+  .item-title { font-size: 15px; font-weight: 600; line-height: 1.35; word-break: break-word; }
+  .card.done .item-title { text-decoration: line-through; }
+  .card-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .icon-btn {
+    background: transparent; border: 0; color: rgba(255,255,255,0.34);
+    padding: 4px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center;
+  }
+  .icon-btn.on-sun { color: var(--cyan); }
+  .icon-btn.on-star { color: var(--amber); }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+  .pill { padding: 2px 7px; border-radius: 999px; background: rgba(255,255,255,0.08); }
+  .pill.tag { color: var(--cyan); background: rgba(56,189,248,0.14); }
+  .pill.myday { color: var(--emerald); background: rgba(52,211,153,0.14); }
+  .notes { margin-top: 7px; font-size: 12px; color: var(--muted); white-space: pre-wrap; word-break: break-word; }
+  .steps-wrap { margin-top: 8px; font-size: 12px; color: var(--cyan); }
+  .steps-wrap summary { cursor: pointer; font-weight: 600; }
+  .steps { margin-top: 6px; padding-left: 8px; border-left: 2px solid var(--border); font-size: 13px; }
+  .step {
+    display: flex; align-items: center; gap: 8px; padding: 4px 0; color: rgba(255,255,255,0.88); cursor: pointer;
+  }
+  .step.done { opacity: 0.45; text-decoration: line-through; }
+  .step-box {
+    width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid rgba(255,255,255,0.45);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0;
+  }
+  .step.done .step-box { background: var(--emerald); border-color: var(--emerald); color: #04131d; }
+  a.open-btn {
+    color: var(--cyan); text-decoration: none; font-size: 12px; font-weight: 600;
+    padding: 4px 9px; border-radius: 8px; background: rgba(56,189,248,0.16); white-space: nowrap;
+  }
+  .empty { text-align: center; color: var(--muted); padding: 36px 16px; font-size: 14px; line-height: 1.5; }
+  .unpaired {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px 18px; text-align: center; margin-top: 24px;
+  }
+  .unpaired h2 { margin: 0 0 8px; font-size: 18px; }
+  .unpaired p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; }
+</style>
+</head>
+<body>
+  <div id="install-banner" class="install-banner">
+    <div><strong>Add to Home Screen:</strong> Tap Safari's <strong>Share</strong> icon below, then tap <strong>Add to Home Screen</strong>.</div>
+    <button class="install-dismiss" id="dismiss-install" aria-label="Dismiss">X</button>
+  </div>
+
+  <div class="header">
+    <div class="brand">
+      <img src="./icon.png" alt="">
+      <div class="brand-title">FocusFlow</div>
+    </div>
+    <button class="sync-btn" id="sync-btn" type="button">
+      <span class="dot" id="sync-dot"></span>
+      <span id="sync-label">Ready</span>
+    </button>
+  </div>
+
+  <div id="unpaired-box" class="unpaired" style="display:none">
+    <h2>Pair With FocusFlow on Your Mac</h2>
+    <p>Open <strong>FocusFlow Tasks (Command+2)</strong> on your Mac, click <strong>iPhone Web App</strong> in the bottom-left sidebar, and scan the QR code with your iPhone camera.</p>
+  </div>
+
+  <div id="app-root" style="display:none">
+    <form class="dump-box" id="dump-form">
+      <div class="dump-row">
+        <input id="dump-input" class="dump-input" type="text" placeholder="Brain-dump a thought, task, or paste a link..." autocomplete="off">
+        <button class="dump-submit" type="submit">Add</button>
+      </div>
+      <div class="route-chips" id="route-chips">
+        <button type="button" class="chip active" data-route="auto">Auto-Route</button>
+        <button type="button" class="chip" data-route="myday">My Day</button>
+        <button type="button" class="chip" data-route="tasks">Tasks</button>
+        <button type="button" class="chip" data-route="random-notes">Random Note</button>
+        <button type="button" class="chip" data-route="follow-ups">Follow Up</button>
+      </div>
+    </form>
+
+    <div class="toolbar">
+      <input id="q" class="search" type="search" placeholder="Search tasks, #tags, notes, places...">
+      <button id="suggest-btn" class="suggest-btn" type="button" style="display:none">Suggestions</button>
+    </div>
+
+    <div id="tabs" class="tabs"></div>
+    <div id="suggestions-drawer" class="suggestions-drawer" style="display:none"></div>
+    <div id="list"></div>
+  </div>
+
+<script>
+(function() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(function() {});
+  }
+
+  const CREDS_KEY = 'ff_creds_v1';
+  const SNAP_KEY = 'ff_snapshot_v1';
+  const OPS_KEY = 'ff_pending_ops_v1';
+  const DISMISS_INSTALL_KEY = 'ff_hide_install_v1';
+
+  // Show install hint when opened in regular mobile browser (not standalone Home Screen)
+  const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  const installBanner = document.getElementById('install-banner');
+  if (!isStandalone && !localStorage.getItem(DISMISS_INSTALL_KEY)) {
+    installBanner.classList.add('show');
+  }
+  document.getElementById('dismiss-install').addEventListener('click', function() {
+    localStorage.setItem(DISMISS_INSTALL_KEY, '1');
+    installBanner.classList.remove('show');
+  });
+
+  // Read pairing credentials from URL #hash (keep hash intact in Safari so Add to Home Screen captures it!)
+  function loadCreds() {
+    if (location.hash && location.hash.length > 3) {
+      const p = new URLSearchParams(location.hash.slice(1));
+      const g = p.get('g'), k = p.get('k'), t = p.get('t');
+      if (g && k && t) {
+        const creds = { g, k, t };
+        try { localStorage.setItem(CREDS_KEY, JSON.stringify(creds)); } catch (_) {}
+        return creds;
+      }
+    }
+    try {
+      const raw = localStorage.getItem(CREDS_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  const creds = loadCreds();
+  if (!creds) {
+    document.getElementById('unpaired-box').style.display = 'block';
+    return;
+  }
+  document.getElementById('app-root').style.display = 'block';
+
+  // --- AES-256-GCM Helpers (compatible byte-for-byte with Swift CryptoKit AES.GCM.SealedBox.combined) ---
+  function b64ToBytes(b64) {
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return arr;
+  }
+  function bytesToB64(bytes) {
+    let bin = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(bin);
+  }
+  let cachedCryptoKey = null;
+  async function getCryptoKey() {
+    if (cachedCryptoKey) return cachedCryptoKey;
+    cachedCryptoKey = await crypto.subtle.importKey(
+      'raw', b64ToBytes(creds.k), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']
+    );
+    return cachedCryptoKey;
+  }
+  async function encryptObj(obj) {
+    const key = await getCryptoKey();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encoded = new TextEncoder().encode(JSON.stringify(obj));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded));
+    const combined = new Uint8Array(iv.length + ct.length);
+    combined.set(iv, 0);
+    combined.set(ct, iv.length);
+    return bytesToB64(combined);
+  }
+  async function decryptObj(b64) {
+    const key = await getCryptoKey();
+    const combined = b64ToBytes(b64.trim());
+    const iv = combined.slice(0, 12);
+    const ct = combined.slice(12);
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+    return JSON.parse(new TextDecoder().decode(pt));
+  }
+
+  // --- Local State + Optimistic Pending Ops ---
+  function todayKeyLocal() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  let baseSnapshot = (function() {
+    try { return JSON.parse(localStorage.getItem(SNAP_KEY) || 'null'); } catch (_) { return null; }
+  })() || {
+    generatedAt: '',
+    todayKey: todayKeyLocal(),
+    lists: [
+      { id: 'tasks', name: 'Tasks' },
+      { id: 'random-notes', name: 'Random things to note' },
+      { id: 'recipes', name: 'Recipes' },
+      { id: 'follow-ups', name: 'Follow Ups' }
+    ],
+    items: [],
+    appliedOpIDs: []
+  };
+
+  let pendingOps = (function() {
+    try { return JSON.parse(localStorage.getItem(OPS_KEY) || '[]'); } catch (_) { return []; }
+  })();
+
+  function savePendingOps() {
+    try { localStorage.setItem(OPS_KEY, JSON.stringify(pendingOps)); } catch (_) {}
+  }
+
+  function extractTags(txt) {
+    const m = (txt || '').match(/#[A-Za-z0-9_-]+/g);
+    return m ? Array.from(new Set(m)) : [];
+  }
+  function extractURLs(txt) {
+    const m = (txt || '').match(/https?:\/\/[^\s<>")]+/gi);
+    return m || [];
+  }
+  function isBareURL(txt) {
+    const t = (txt || '').trim();
+    const urls = extractURLs(t);
+    if (urls.length !== 1) return false;
+    return t.replace(urls[0], '').trim().length === 0;
+  }
+
+  // Build effective items by replaying unabsorbed pendingOps over baseSnapshot
+  function computeEffectiveState() {
+    const today = todayKeyLocal();
+    const appliedSet = new Set(baseSnapshot.appliedOpIDs || []);
+    const items = (baseSnapshot.items || []).map(it => ({
+      ...it,
+      steps: (it.steps || []).map(s => ({ ...s }))
+    }));
+
+    for (const op of pendingOps) {
+      if (appliedSet.has(op.id)) continue;
+      if (op.kind === 'createItem' && op.rawText) {
+        let title = op.rawText.trim();
+        let listID = op.targetListID || 'tasks';
+        let myDay = !!op.addToMyDay;
+        let imp = !!op.isImportant;
+        const lower = title.toLowerCase();
+        if (!op.targetListID) {
+          if (lower.startsWith('today:')) {
+            title = title.slice(6).trim();
+            myDay = true;
+          } else if (lower.startsWith('note:')) {
+            title = title.slice(5).trim();
+            listID = 'random-notes';
+          } else if (lower.startsWith('followup:') || lower.startsWith('follow up:')) {
+            title = title.replace(/^follow\s?up:\s*/i, '').trim();
+            listID = 'follow-ups';
+          } else if (isBareURL(title) && extractTags(title).length === 0) {
+            listID = 'random-notes';
+          }
+        }
+        items.unshift({
+          id: 'local-' + op.id,
+          listID,
+          title,
+          notes: '',
+          isCompleted: false,
+          isImportant: imp,
+          myDayDate: myDay ? today : null,
+          createdAt: op.createdAt,
+          sortOrder: 999999,
+          steps: []
+        });
+      } else if (op.taskID) {
+        const idx = items.findIndex(x => x.id === op.taskID);
+        if (idx >= 0) {
+          if (op.kind === 'toggleComplete') {
+            items[idx].isCompleted = !!op.boolValue;
+          } else if (op.kind === 'toggleMyDay') {
+            items[idx].myDayDate = op.boolValue ? today : null;
+          } else if (op.kind === 'toggleImportant') {
+            items[idx].isImportant = !!op.boolValue;
+          } else if (op.kind === 'toggleStep' && op.stepID) {
+            const sIdx = (items[idx].steps || []).findIndex(s => s.id === op.stepID);
+            if (sIdx >= 0) items[idx].steps[sIdx].isCompleted = !!op.boolValue;
+          }
+        }
+      }
+    }
+    return { today, items, lists: baseSnapshot.lists || [] };
+  }
+
+  // --- UI State & Rendering ---
+  const TABS = [
+    { id: 'myday', label: 'My Day' },
+    { id: 'tasks', label: 'Tasks' },
+    { id: 'notes', label: 'Random Notes' },
+    { id: 'followups', label: 'Follow Ups' },
+    { id: 'starred', label: 'Important' },
+    { id: 'recipes', label: 'Recipes' }
+  ];
+  let activeTab = 'myday';
+  let activeRoute = 'auto';
+  let showSuggestions = false;
+  let lastETag = '';
+  let syncing = false;
+
+  const qInput = document.getElementById('q');
+  const tabsEl = document.getElementById('tabs');
+  const listEl = document.getElementById('list');
+  const suggestBtn = document.getElementById('suggest-btn');
+  const suggestDrawer = document.getElementById('suggestions-drawer');
+  const syncDot = document.getElementById('sync-dot');
+  const syncLabel = document.getElementById('sync-label');
+
+  function setSyncStatus(mode, text) {
+    syncDot.className = 'dot' + (mode === 'spin' ? ' spin' : mode === 'warn' ? ' warn' : '');
+    syncLabel.textContent = text;
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+
+  function listNameFor(listID, lists) {
+    const found = lists.find(l => l.id === listID);
+    return found ? found.name : 'Tasks';
+  }
+
+  function matchesTab(it, tabID, today, lists) {
+    const lname = listNameFor(it.listID, lists).toLowerCase();
+    if (tabID === 'myday') return it.myDayDate === today;
+    if (tabID === 'starred') return !!it.isImportant && !it.isCompleted;
+    if (tabID === 'tasks') return (it.listID === 'tasks' || lname === 'tasks');
+    if (tabID === 'notes') return lname.includes('random');
+    if (tabID === 'followups') return lname.includes('follow');
+    if (tabID === 'recipes') return lname.includes('recipe');
+    return true;
+  }
+
+  const sunSVG = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+  const starSVG = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+  const checkSVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+  function renderCard(it, today, lists, showListPill) {
+    const tags = extractTags(`${it.title || ''} ${it.notes || ''}`);
+    const urls = extractURLs(`${it.title || ''} ${it.notes || ''}`);
+    const firstURL = urls[0] || '';
+    const isMyDay = it.myDayDate === today;
+    const lname = listNameFor(it.listID, lists);
+
+    const pills = [];
+    if (showListPill) pills.push(`<span class="pill">${esc(lname)}</span>`);
+    if (isMyDay && activeTab !== 'myday') pills.push(`<span class="pill myday">My Day</span>`);
+    if (it.dueDate) pills.push(`<span class="pill">Due ${esc(it.dueDate)}</span>`);
+    for (const tg of tags) pills.push(`<span class="pill tag">${esc(tg)}</span>`);
+
+    const linkBtn = firstURL ? `<a class="open-btn" href="${esc(firstURL)}" target="_blank" rel="noopener">Open</a>` : '';
+    const notesHTML = it.notes ? `<div class="notes">${esc(it.notes)}</div>` : '';
+    let stepsHTML = '';
+    if (it.steps && it.steps.length) {
+      const doneCount = it.steps.filter(s => s.isCompleted).length;
+      const rows = it.steps.map(s => `
+        <div class="step ${s.isCompleted ? 'done' : ''}" data-action="step" data-task="${esc(it.id)}" data-step="${esc(s.id)}" data-next="${s.isCompleted ? '0' : '1'}">
+          <span class="step-box">${s.isCompleted ? 'v' : ''}</span>
+          <span>${esc(s.title)}</span>
+        </div>
+      `).join('');
+      stepsHTML = `<details class="steps-wrap"><summary>${doneCount}/${it.steps.length} steps</summary><div class="steps">${rows}</div></details>`;
+    }
+
+    const canMutate = !String(it.id).startsWith('local-');
+    const actionsHTML = canMutate ? `
+      <div class="card-actions">
+        ${linkBtn}
+        <button class="icon-btn ${isMyDay ? 'on-sun' : ''}" data-action="myday" data-task="${esc(it.id)}" data-next="${isMyDay ? '0' : '1'}" title="My Day">${sunSVG}</button>
+        <button class="icon-btn ${it.isImportant ? 'on-star' : ''}" data-action="star" data-task="${esc(it.id)}" data-next="${it.isImportant ? '0' : '1'}" title="Important">${starSVG}</button>
+      </div>
+    ` : `<div class="card-actions">${linkBtn}<span class="pill">Queued</span></div>`;
+
+    return `
+      <div class="card ${it.isCompleted ? 'done' : ''}">
+        <div class="card-main">
+          <button class="check-btn" data-action="complete" data-task="${esc(it.id)}" data-next="${it.isCompleted ? '0' : '1'}" ${canMutate ? '' : 'disabled'}>
+            ${it.isCompleted ? checkSVG : ''}
+          </button>
+          <div class="card-body">
+            <div class="item-title">${esc(it.title)}</div>
+            ${pills.length ? `<div class="meta">${pills.join('')}</div>` : ''}
+            ${notesHTML}
+            ${stepsHTML}
+          </div>
+          ${actionsHTML}
+        </div>
+      </div>
+    `;
+  }
+
+  function render() {
+    const { today, items, lists } = computeEffectiveState();
+    const q = qInput.value.trim().toLowerCase();
+
+    suggestBtn.style.display = (!q && activeTab === 'myday') ? 'inline-flex' : 'none';
+    suggestBtn.classList.toggle('active', showSuggestions);
+
+    tabsEl.innerHTML = TABS.map(t => {
+      const count = items.filter(it => !it.isCompleted && matchesTab(it, t.id, today, lists)).length;
+      return `<button type="button" class="tab ${activeTab === t.id ? 'active' : ''}" data-tab="${t.id}">${esc(t.label)} (${count})</button>`;
+    }).join('');
+
+    // Suggestions Drawer on My Day
+    if (!q && activeTab === 'myday' && showSuggestions) {
+      const candidates = items.filter(it => !it.isCompleted && it.myDayDate !== today && !String(it.id).startsWith('local-'));
+      const prevMyDay = candidates.filter(it => it.myDayDate && it.myDayDate < today);
+      const dueNow = candidates.filter(it => (!it.myDayDate || it.myDayDate >= today) && it.dueDate && it.dueDate <= today);
+      const others = candidates.filter(it => !prevMyDay.includes(it) && !dueNow.includes(it)).slice(0, 25);
+
+      const renderGroup = (title, arr) => arr.length ? `
+        <div class="sug-title">${esc(title)}</div>
+        ${arr.map(it => `
+          <div class="sug-row">
+            <div style="font-size:13px;font-weight:500">${esc(it.title)}</div>
+            <button type="button" class="sug-add" data-action="myday" data-task="${esc(it.id)}" data-next="1">+</button>
+          </div>
+        `).join('')}
+      ` : '';
+
+      const html = renderGroup('From Earlier My Day', prevMyDay)
+        + renderGroup('Due Today & Earlier', dueNow)
+        + renderGroup('Active Tasks', others);
+      suggestDrawer.innerHTML = html || '<div style="font-size:13px;color:var(--muted)">No suggestions right now.</div>';
+      suggestDrawer.style.display = 'block';
+    } else {
+      suggestDrawer.style.display = 'none';
+    }
+
+    if (q) {
+      const hits = items.filter(it => {
+        const st = (it.steps || []).map(s => s.title).join(' ');
+        return `${it.title || ''} ${it.notes || ''} ${st}`.toLowerCase().includes(q);
+      });
+      listEl.innerHTML = hits.length
+        ? hits.map(it => renderCard(it, today, lists, true)).join('')
+        : '<div class="empty">No matching items.</div>';
+      return;
+    }
+
+    const inTab = items.filter(it => matchesTab(it, activeTab, today, lists));
+    const activeItems = inTab.filter(it => !it.isCompleted);
+    const doneItems = inTab.filter(it => it.isCompleted).slice(0, 25);
+
+    if (!activeItems.length && !doneItems.length) {
+      listEl.innerHTML = `<div class="empty">${activeTab === 'myday' ? 'Nothing on My Day yet. Tap Suggestions above or add a task.' : 'Nothing in this list right now.'}</div>`;
+      return;
+    }
+
+    const showListPill = activeTab === 'myday' || activeTab === 'starred';
+    let out = activeItems.map(it => renderCard(it, today, lists, showListPill)).join('');
+    if (doneItems.length) {
+      out += `<div class="section-label">Completed (${doneItems.length})</div>`
+          + doneItems.map(it => renderCard(it, today, lists, showListPill)).join('');
+    }
+    listEl.innerHTML = out;
+  }
+
+  // --- Queue & Sync Engine ---
+  async function enqueueOp(op) {
+    pendingOps.push({ ...op, uploaded: false });
+    savePendingOps();
+    render();
+    await syncNow(false);
+  }
+
+  async function syncNow(forcePull) {
+    if (syncing) return;
+    if (!navigator.onLine) {
+      const unup = pendingOps.filter(o => !o.uploaded).length;
+      setSyncStatus('warn', unup ? `Offline (${unup} queued)` : 'Offline');
+      return;
+    }
+    syncing = true;
+    setSyncStatus('spin', 'Syncing...');
+
+    try {
+      // 1. Upload any pending local operations as distinct op_<id>.enc files in the Secret Gist
+      const toUpload = pendingOps.filter(o => !o.uploaded);
+      if (toUpload.length > 0) {
+        const filesPayload = {};
+        for (const op of toUpload) {
+          const clean = { ...op };
+          delete clean.uploaded;
+          filesPayload[`op_${op.id}.enc`] = { content: await encryptObj(clean) };
+        }
+        const patchResp = await fetch(`https://api.github.com/gists/${creds.g}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${creds.t}`,
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ files: filesPayload })
+        });
+        if (patchResp.ok) {
+          for (const op of toUpload) op.uploaded = true;
+          savePendingOps();
+          lastETag = ''; // Force fresh pull
+        }
+      }
+
+      // 2. Pull latest focusflow_snapshot.enc from Mac (using ETag so idle checks cost 0 quota)
+      const headers = {
+        'Authorization': `Bearer ${creds.t}`,
+        'Accept': 'application/vnd.github+json'
+      };
+      if (lastETag && !forcePull) headers['If-None-Match'] = lastETag;
+
+      const getResp = await fetch(`https://api.github.com/gists/${creds.g}`, { headers });
+      if (getResp.status === 304) {
+        const waiting = pendingOps.length;
+        setSyncStatus('ok', waiting ? `Synced (${waiting} sent to Mac)` : 'Synced');
+      } else if (getResp.ok) {
+        lastETag = getResp.headers.get('ETag') || '';
+        const gist = await getResp.json();
+        const snapFile = gist.files && gist.files['focusflow_snapshot.enc'];
+        if (snapFile) {
+          let rawCipher = snapFile.content || '';
+          if (snapFile.truncated && snapFile.raw_url) {
+            const rawResp = await fetch(snapFile.raw_url, { headers: { 'Authorization': `Bearer ${creds.t}` } });
+            rawCipher = await rawResp.text();
+          }
+          if (rawCipher) {
+            const decoded = await decryptObj(rawCipher);
+            baseSnapshot = decoded;
+            try { localStorage.setItem(SNAP_KEY, JSON.stringify(baseSnapshot)); } catch (_) {}
+
+            // Prune ops already absorbed by FocusFlow on Mac
+            const absorbed = new Set(baseSnapshot.appliedOpIDs || []);
+            pendingOps = pendingOps.filter(op => !absorbed.has(op.id));
+            savePendingOps();
+            render();
+          }
+        }
+        const waiting = pendingOps.length;
+        setSyncStatus('ok', waiting ? `Sent (${waiting} awaiting Mac)` : 'Synced');
+      } else {
+        setSyncStatus('warn', `Sync HTTP ${getResp.status}`);
+      }
+    } catch (_) {
+      setSyncStatus('warn', 'Offline — saved on phone');
+    } finally {
+      syncing = false;
+    }
+  }
+
+  // --- Event Listeners ---
+  document.getElementById('route-chips').addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-route]');
+    if (!btn) return;
+    activeRoute = btn.dataset.route;
+    document.querySelectorAll('[data-route]').forEach(el => el.classList.toggle('active', el === btn));
+  });
+
+  document.getElementById('dump-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const input = document.getElementById('dump-input');
+    const txt = input.value.trim();
+    if (!txt) return;
+    input.value = '';
+    const id = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    enqueueOp({
+      id,
+      kind: 'createItem',
+      createdAt: new Date().toISOString(),
+      rawText: txt,
+      targetListID: (activeRoute === 'auto' || activeRoute === 'myday') ? null : activeRoute,
+      addToMyDay: activeRoute === 'myday',
+      isImportant: false
+    });
+  });
+
+  tabsEl.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-tab]');
+    if (!btn) return;
+    activeTab = btn.dataset.tab;
+    render();
+  });
+
+  suggestBtn.addEventListener('click', function() {
+    showSuggestions = !showSuggestions;
+    render();
+  });
+
+  qInput.addEventListener('input', render);
+
+  function handleActionClick(e) {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const action = el.dataset.action;
+    const taskID = el.dataset.task;
+    const boolValue = el.dataset.next === '1';
+    const id = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+
+    if (action === 'complete') {
+      enqueueOp({ id, kind: 'toggleComplete', createdAt: new Date().toISOString(), taskID, boolValue });
+    } else if (action === 'myday') {
+      enqueueOp({ id, kind: 'toggleMyDay', createdAt: new Date().toISOString(), taskID, boolValue });
+    } else if (action === 'star') {
+      enqueueOp({ id, kind: 'toggleImportant', createdAt: new Date().toISOString(), taskID, boolValue });
+    } else if (action === 'step') {
+      enqueueOp({ id, kind: 'toggleStep', createdAt: new Date().toISOString(), taskID, stepID: el.dataset.step, boolValue });
+    }
+  }
+  listEl.addEventListener('click', handleActionClick);
+  suggestDrawer.addEventListener('click', handleActionClick);
+
+  document.getElementById('sync-btn').addEventListener('click', function() { syncNow(true); });
+  window.addEventListener('online', function() { syncNow(true); });
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') syncNow(false);
+  });
+
+  render();
+  syncNow(true);
+  setInterval(function() {
+    if (document.visibilityState === 'visible') syncNow(false);
+  }, 20000);
+})();
+</script>
+</body>
+</html>
